@@ -28,13 +28,6 @@ jobs:
           $ip = (& $bin ip -4)
           echo "NODE_IP=$ip" >> $env:GITHUB_ENV
 
-      - name: Install VS Code
-        run: |
-          $url = "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64"
-          $installer = "$env:TEMP\VSCodeSetup.exe"
-          (New-Object System.Net.WebClient).DownloadFile($url, $installer)
-          Start-Process $installer -ArgumentList "/VERYSILENT", "/NORESTART", "/MERGETASKS=!runcode" -Wait
-
       - name: Post Process
         run: |
           Write-Host "Endpoint: ${{ env.NODE_IP }}"
